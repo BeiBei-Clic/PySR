@@ -171,49 +171,74 @@ def _check_assertions(
     X_units,
     y_units,
 ):
-    # Check for potential errors before they happen
+    # 在错误发生之前检查潜在的错误
+    
+    # 检查X必须是二维数组（样本数×特征数）
     assert len(X.shape) == 2
+    
+    # 检查y必须是一维或二维数组
     assert len(y.shape) in [1, 2]
+    
+    # 检查X和y的样本数量必须一致
     assert X.shape[0] == y.shape[0]
+    
+    # 如果提供了权重，检查权重的相关属性
     if weights is not None:
+        # 权重的形状必须与y一致
         assert weights.shape == y.shape
+        # 权重的样本数必须与X一致
         assert X.shape[0] == weights.shape[0]
+    
+    # 如果使用自定义变量名，进行相关检查
     if use_custom_variable_names:
+        # 变量名的数量必须与特征数一致
         assert len(variable_names) == X.shape[1]
-        # Check none of the variable names are function names:
+        # 检查变量名不能是函数名
         for var_name in variable_names:
-            # Check if alphanumeric only:
+            # 检查变量名是否只包含字母数字字符
             if not re.match(r"^[₀₁₂₃₄₅₆₇₈₉a-zA-Z0-9_]+$", var_name):
                 raise ValueError(
-                    f"Invalid variable name {var_name}. "
-                    "Only alphanumeric characters, numbers, "
-                    "and underscores are allowed."
+                    f"无效的变量名 {var_name}。"
+                    "只允许使用字母数字字符、数字和下划线。"
                 )
+            # 验证变量名是否为有效的SymPy符号
             assert_valid_sympy_symbol(var_name)
+    
+    # 如果complexity_of_variables是列表，检查其长度是否与特征数一致
     if (
         isinstance(complexity_of_variables, list)
         and len(complexity_of_variables) != X.shape[1]
     ):
         raise ValueError(
-            "The number of elements in `complexity_of_variables` must equal the number of features in `X`."
+            "complexity_of_variables中的元素数量必须等于X中的特征数量。"
         )
+    
+    # 如果提供了X_units，检查其长度是否与特征数一致
     if X_units is not None and len(X_units) != X.shape[1]:
         raise ValueError(
-            "The number of units in `X_units` must equal the number of features in `X`."
+            "X_units中的单位数量必须等于X中的特征数量。"
         )
+    
+    # 如果提供了y_units，进行相关检查
     if y_units is not None:
+        # 初始化检查标志
         good_y_units = False
+        # 如果y_units是列表形式
         if isinstance(y_units, list):
+            # 如果y是一维的，检查y_units是否只有一个元素
             if len(y.shape) == 1:
                 good_y_units = len(y_units) == 1
             else:
+                # 如果y是二维的，检查y_units的长度是否与y的列数一致
                 good_y_units = len(y_units) == y.shape[1]
         else:
+            # 如果y_units不是列表，检查y是否是一维或者只有一列
             good_y_units = len(y.shape) == 1 or y.shape[1] == 1
 
+        # 如果y_units检查不通过，抛出错误
         if not good_y_units:
             raise ValueError(
-                "The number of units in `y_units` must equal the number of output features in `y`."
+                "y_units中的单位数量必须等于y中的输出特征数量。"
             )
 
 
@@ -1530,125 +1555,145 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
         str | ArrayLike[str] | None,
     ]:
         """
-        Validate the parameters passed to the :term`fit` method.
+        验证传递给:term:`fit`方法的参数。
 
-        This method also sets the `nout_` attribute.
+        此方法还设置`nout_`属性。
 
         Parameters
         ----------
         X : ndarray | pandas.DataFrame
-            Training data of shape `(n_samples, n_features)`.
+            形状为`(n_samples, n_features)`的训练数据。
         y : ndarray | pandas.DataFrame}
-            Target values of shape `(n_samples,)` or `(n_samples, n_targets)`.
-            Will be cast to `X`'s dtype if necessary.
+            形状为`(n_samples,)`或`(n_samples, n_targets)`的目标值。
+            如有必要，将被转换为`X`的数据类型。
         Xresampled : ndarray | pandas.DataFrame
-            Resampled training data used for denoising,
-            of shape `(n_resampled, n_features)`.
+            用于去噪的重采样训练数据，
+            形状为`(n_resampled, n_features)`。
         weights : ndarray | pandas.DataFrame
-            Weight array of the same shape as `y`.
-            Each element is how to weight the mean-square-error loss
-            for that particular element of y.
+            与`y`形状相同的权重数组。
+            每个元素表示如何对均方误差损失进行加权
+            对于y的特定元素。
         variable_names : ndarray of length n_features
-            Names of each feature in the training dataset, `X`.
+            训练数据集中每个特征的名称，`X`。
         complexity_of_variables : int | float | list[int | float]
-            Complexity of each feature in the training dataset, `X`.
+            训练数据集中每个特征的复杂度，`X`。
         X_units : list[str] of length n_features
-            Units of each feature in the training dataset, `X`.
+            训练数据集中每个特征的单位，`X`。
         y_units : str | list[str] of length n_out
-            Units of each feature in the training dataset, `y`.
+            训练数据集中每个特征的单位，`y`。
 
         Returns
         -------
         X_validated : ndarray of shape (n_samples, n_features)
-            Validated training data.
+            验证后的训练数据。
         y_validated : ndarray of shape (n_samples,) or (n_samples, n_targets)
-            Validated target data.
+            验证后的目标数据。
         Xresampled : ndarray of shape (n_resampled, n_features)
-            Validated resampled training data used for denoising.
+            验证后的用于去噪的重采样训练数据。
         variable_names_validated : list[str] of length n_features
-            Validated list of variable names for each feature in `X`.
+            验证后的`X`中每个特征的变量名列表。
         X_units : list[str] of length n_features
-            Validated units for `X`.
+            验证后的`X`的单位。
         y_units : str | list[str] of length n_out
-            Validated units for `y`.
+            验证后的`y`的单位。
 
         """
+        # 检查X是否为pandas DataFrame
         if isinstance(X, pd.DataFrame):
+            # 如果X是DataFrame且variable_names已提供，则重置variable_names并发出警告
             if variable_names:
                 variable_names = None
                 warnings.warn(
-                    "`variable_names` has been reset to `None` as `X` is a DataFrame. "
-                    "Using DataFrame column names instead."
+                    "`variable_names`已重置为`None`，因为`X`是DataFrame。"
+                    "将使用DataFrame的列名。"
                 )
 
+            # 检查DataFrame的列名是否包含空格，如果有则替换为下划线并发出警告
             if (
                 pd.api.types.is_object_dtype(X.columns)
                 and X.columns.str.contains(" ").any()
             ):
                 X.columns = X.columns.str.replace(" ", "_")
                 warnings.warn(
-                    "Spaces in DataFrame column names are not supported. "
-                    "Spaces have been replaced with underscores. \n"
-                    "Please rename the columns to valid names."
+                    "DataFrame列名中的空格不受支持。"
+                    "空格已被替换为下划线。\n"
+                    "请将列重命名为有效名称。"
                 )
+        # 如果X不是DataFrame但variable_names包含空格，则替换空格为下划线并发出警告
         elif variable_names and any([" " in name for name in variable_names]):
             variable_names = [name.replace(" ", "_") for name in variable_names]
             warnings.warn(
-                "Spaces in `variable_names` are not supported. "
-                "Spaces have been replaced with underscores. \n"
-                "Please use valid names instead."
+                "`variable_names`中的空格不受支持。"
+                "空格已被替换为下划线。\n"
+                "请使用有效名称。"
             )
 
+        # 检查complexity_of_variables是否在fit方法和__init__方法中都被设置，如果是则抛出错误
         if (
             complexity_of_variables is not None
             and self.complexity_of_variables is not None
         ):
             raise ValueError(
-                "You cannot set `complexity_of_variables` at both `fit` and `__init__`. "
-                "Pass it at `__init__` to set it to global default, OR use `fit` to set it for "
-                "each variable individually."
+                "不能在`fit`和`__init__`中都设置`complexity_of_variables`。"
+                "在`__init__`中传递以设置全局默认值，或在`fit`中传递以单独设置每个变量。"
             )
+        # 如果在fit方法中设置了complexity_of_variables，则使用该值
         elif complexity_of_variables is not None:
             complexity_of_variables = complexity_of_variables
+        # 如果在__init__方法中设置了complexity_of_variables，则使用该值
         elif self.complexity_of_variables is not None:
             complexity_of_variables = self.complexity_of_variables
+        # 如果都没有设置，则设为None
         else:
             complexity_of_variables = None
 
-        # Data validation and feature name fetching via sklearn
-        # This method sets the n_features_in_ attribute
+        # 通过sklearn进行数据验证和特征名称获取
+        # 此方法设置n_features_in_属性
+        # 如果Xresampled不为None，则验证Xresampled数组
         if Xresampled is not None:
             Xresampled = check_array(Xresampled)
+        # 如果weights不为None，则验证weights数组并检查与y的一致性
         if weights is not None:
             weights = check_array(weights, ensure_2d=False)
             check_consistent_length(weights, y)
+        # 验证X和y的数据
         X, y = self._validate_data_X_y(X, y)
+        # 检查并获取特征名称
         self.feature_names_in_ = _safe_check_feature_names_in(
             self, variable_names, generate_names=False
         )
 
+        # 如果没有特征名称，则生成默认名称
         if self.feature_names_in_ is None:
+            # 生成默认特征名称"x0", "x1", ...
             self.feature_names_in_ = np.array([f"x{i}" for i in range(X.shape[1])])
+            # 生成显示用的下标特征名称"x₀", "x₁", ...
             self.display_feature_names_in_ = np.array(
                 [f"x{_subscriptify(i)}" for i in range(X.shape[1])]
             )
             variable_names = self.feature_names_in_
         else:
+            # 如果已有特征名称，则设置显示用的特征名称
             self.display_feature_names_in_ = self.feature_names_in_
             variable_names = self.feature_names_in_
 
-        # Handle multioutput data
+        # 处理多输出数据
+        # 如果y是一维数组或二维但只有一列，则将其reshape为一维
         if len(y.shape) == 1 or (len(y.shape) == 2 and y.shape[1] == 1):
             y = y.reshape(-1)
+        # 如果y是二维数组且有多列，则设置输出数量nout_
         elif len(y.shape) == 2:
             self.nout_ = y.shape[1]
+        # 如果y的形状不支持，则抛出NotImplementedError
         else:
-            raise NotImplementedError("y shape not supported!")
+            raise NotImplementedError("不支持的y形状!")
 
+        # 深拷贝复杂度、X单位和y单位变量
         self.complexity_of_variables_ = copy.deepcopy(complexity_of_variables)
         self.X_units_ = copy.deepcopy(X_units)
         self.y_units_ = copy.deepcopy(y_units)
 
+        # 返回验证后的参数
         return (
             X,
             y,
@@ -1694,66 +1739,67 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
         random_state: np.random.RandomState,
     ):
         """
-        Transform the training data before fitting the symbolic regressor.
+        在拟合符号回归器之前转换训练数据。
 
-        This method also updates/sets the `selection_mask_` attribute.
+        此方法还更新/设置`selection_mask_`属性。
 
         Parameters
         ----------
         X : ndarray
-            Training data of shape (n_samples, n_features).
+            形状为(n_samples, n_features)的训练数据。
         y : ndarray
-            Target values of shape (n_samples,) or (n_samples, n_targets).
-            Will be cast to X's dtype if necessary.
+            形状为(n_samples,)或(n_samples, n_targets)的目标值。
+            如有必要，将被转换为X的数据类型。
         Xresampled : ndarray | None
-            Resampled training data, of shape `(n_resampled, n_features)`,
-            used for denoising.
+            重采样训练数据，形状为`(n_resampled, n_features)`，
+            用于去噪。
         variable_names : list[str]
-            Names of each variable in the training dataset, `X`.
-            Of length `n_features`.
+            训练数据集`X`中每个变量的名称。
+            长度为`n_features`。
         complexity_of_variables : int | float | list[int | float] | None
-            Complexity of each variable in the training dataset, `X`.
+            训练数据集`X`中每个变量的复杂度。
         X_units : list[str]
-            Units of each variable in the training dataset, `X`.
+            训练数据集`X`中每个变量的单位。
         y_units : str | list[str]
-            Units of each variable in the training dataset, `y`.
+            训练数据集`y`中每个变量的单位。
         random_state : int | np.RandomState
-            Pass an int for reproducible results across multiple function calls.
-            See :term:`Glossary <random_state>`. Default is `None`.
+            传递一个整数以在多次函数调用中获得可重现的结果。
+            请参见:term:`Glossary <random_state>`。默认为`None`。
 
         Returns
         -------
         X_transformed : ndarray of shape (n_samples, n_features)
-            Transformed training data. n_samples will be equal to
-            `Xresampled.shape[0]` if `self.denoise` is `True`,
-            and `Xresampled is not None`, otherwise it will be
-            equal to `X.shape[0]`. n_features will be equal to
-            `self.select_k_features` if `self.select_k_features is not None`,
-            otherwise it will be equal to `X.shape[1]`
+            转换后的训练数据。如果`self.denoise`为`True`，
+            且`Xresampled is not None`，则n_samples等于`Xresampled.shape[0]`，
+            否则等于`X.shape[0]`。如果`self.select_k_features is not None`，
+            则n_features等于`self.select_k_features`，
+            否则等于`X.shape[1]`
         y_transformed : ndarray of shape (n_samples,) or (n_samples, n_outputs)
-            Transformed target data. n_samples will be equal to
-            `Xresampled.shape[0]` if `self.denoise` is `True`,
-            and `Xresampled is not None`, otherwise it will be
-            equal to `X.shape[0]`.
+            转换后的目标数据。如果`self.denoise`为`True`，
+            且`Xresampled is not None`，则n_samples等于`Xresampled.shape[0]`，
+            否则等于`X.shape[0]`。
         variable_names_transformed : list[str] of length n_features
-            Names of each variable in the transformed dataset,
-            `X_transformed`.
+            转换后数据集`X_transformed`中每个变量的名称。
         X_units_transformed : list[str] of length n_features
-            Units of each variable in the transformed dataset.
+            转换后数据集中每个变量的单位。
         y_units_transformed : str | list[str] of length n_out
-            Units of each variable in the transformed dataset.
+            转换后数据集中每个变量的单位。
         """
-        # Feature selection transformation
+        # 特征选择转换
+        # 如果启用了特征选择（select_k_features不为None）
         if self.select_k_features:
+            # 运行特征选择算法，选择k个最佳特征
             selection_mask = run_feature_selection(
                 X, y, self.select_k_features, random_state=random_state
             )
+            # 根据选择掩码过滤X数据，只保留选中的特征
             X = X[:, selection_mask]
 
+            # 如果提供了Xresampled数据，也对它进行相同的特征选择
             if Xresampled is not None:
                 Xresampled = Xresampled[:, selection_mask]
 
-            # Reduce variable_names to selection
+            # 根据选择掩码减少variable_names，只保留选中的特征名称
             variable_names = cast(
                 ArrayLike[str],
                 [
@@ -1763,38 +1809,48 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
                 ],
             )
 
+            # 如果complexity_of_variables是列表，也对其进行特征选择过滤
             if isinstance(complexity_of_variables, list):
                 complexity_of_variables = [
                     complexity_of_variables[i]
                     for i in range(len(complexity_of_variables))
                     if selection_mask[i]
                 ]
+                # 更新模型的复杂度变量属性
                 self.complexity_of_variables_ = copy.deepcopy(complexity_of_variables)
 
+            # 如果提供了X_units，也对其进行特征选择过滤
             if X_units is not None:
                 X_units = cast(
                     ArrayLike[str],
                     [X_units[i] for i in range(len(X_units)) if selection_mask[i]],
                 )
+                # 更新模型的X_units属性
                 self.X_units_ = copy.deepcopy(X_units)
 
-            # Re-perform data validation and feature name updating
+            # 重新执行数据验证和特征名称更新
             X, y = self._validate_data_X_y(X, y)
-            # Update feature names with selected variable names
+            # 使用选定的变量名称更新特征名称
             self.selection_mask_ = selection_mask
             self.feature_names_in_ = _check_feature_names_in(self, variable_names)
             self.display_feature_names_in_ = self.feature_names_in_
+            # 记录使用的特征信息
             pysr_logger.info(f"Using features {self.feature_names_in_}")
 
-        # Denoising transformation
+        # 去噪转换
+        # 如果启用了去噪功能
         if self.denoise:
+            # 如果输出变量数量大于1（多输出情况）
             if self.nout_ > 1:
+                # 使用多输出去噪函数处理数据
                 X, y = multi_denoise(
                     X, y, Xresampled=Xresampled, random_state=random_state
                 )
             else:
+                # 使用单输出去噪函数处理数据
                 X, y = denoise(X, y, Xresampled=Xresampled, random_state=random_state)
 
+        # 返回转换后的数据和相关参数
         return X, y, variable_names, complexity_of_variables, X_units, y_units
 
     def _run(
@@ -1807,44 +1863,41 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
         seed: int,
     ):
         """
-        Run the symbolic regression fitting process on the julia backend.
+        在Julia后端运行符号回归拟合过程。
 
         Parameters
         ----------
         X : ndarray
-            Training data of shape `(n_samples, n_features)`.
+            形状为`(n_samples, n_features)`的训练数据。
         y : ndarray
-            Target values of shape `(n_samples,)` or `(n_samples, n_targets)`.
-            Will be cast to `X`'s dtype if necessary.
+            形状为`(n_samples,)`或`(n_samples, n_targets)`的目标值。
+            如有必要，将被转换为`X`的数据类型。
         runtime_params : DynamicallySetParams
-            Dynamically set versions of some parameters passed in __init__.
+            从__init__中传递的一些参数的动态设置版本。
         weights : ndarray | None
-            Weight array of the same shape as `y`.
-            Each element is how to weight the mean-square-error loss
-            for that particular element of y.
+            与`y`形状相同的权重数组。
+            每个元素表示如何对均方误差损失进行加权
+            对于y的特定元素。
         category : ndarray | None
-            If `expression_spec` is a `ParametricExpressionSpec`, then this
-            argument should be a list of integers representing the category
-            of each sample in `X`.
+            如果`expression_spec`是`ParametricExpressionSpec`，则此参数
+            应该是表示`X`中每个样本类别的整数列表。
         seed : int
-            Random seed for julia backend process.
+            Julia后端进程的随机种子。
 
         Returns
         -------
         self : object
-            Reference to `self` with fitted attributes.
+            带有拟合属性的`self`引用。
 
         Raises
         ------
         ImportError
-            Raised when the julia backend fails to import a package.
+            当Julia后端无法导入包时引发。
         """
-        # Need to be global as we don't want to recreate/reinstate julia for
-        # every new instance of PySRRegressor
+        # 需要全局化，因为我们不想为PySRRegressor的每个新实例重新创建/重新启动Julia
         global ALREADY_RAN
 
-        # These are the parameters which may be modified from the ones
-        # specified in init, so we define them here locally:
+        # 这些参数可能与初始化时指定的参数不同，所以我们在这里本地定义它们：
         binary_operators = runtime_params.binary_operators
         unary_operators = runtime_params.unary_operators
         constraints = runtime_params.constraints
@@ -1854,55 +1907,67 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
         complexity_of_variables = self.complexity_of_variables_
         cluster_manager = self.cluster_manager
 
-        # Start julia backend processes
+        # 启动Julia后端进程
+        # 如果尚未运行且更新详细程度不为0，则显示编译信息
         if not ALREADY_RAN and runtime_params.update_verbosity != 0:
-            pysr_logger.info("Compiling Julia backend...")
+            pysr_logger.info("正在编译Julia后端...")
 
+        # 映射并行参数，获取并行模式和进程数
         parallelism, numprocs = _map_parallelism_params(
             self.parallelism, self.procs, getattr(self, "multithreading", None)
         )
 
+        # 如果要求确定性搜索但并行模式不是串行，则抛出错误
         if self.deterministic and parallelism != "serial":
             raise ValueError(
-                "To ensure deterministic searches, you must set `parallelism='serial'`. "
-                "Additionally, make sure to set `random_state` to a seed."
+                "为确保确定性搜索，必须设置`parallelism='serial'`。"
+                "此外，请确保将`random_state`设置为种子。"
             )
+        # 如果设置了随机状态但并行模式不是串行或未设置确定性搜索，则发出警告
         if self.random_state is not None and (
             parallelism != "serial" or not self.deterministic
         ):
             warnings.warn(
-                "Note: Setting `random_state` without also setting `deterministic=True` "
-                "and `parallelism='serial'` will result in non-deterministic searches."
+                "注意：设置`random_state`而不同时设置`deterministic=True`"
+                "和`parallelism='serial'`将导致非确定性搜索。"
             )
 
+        # 如果指定了集群管理器
         if cluster_manager is not None:
+            # 检查并行模式是否为多进程
             if parallelism != "multiprocessing":
                 raise ValueError(
-                    "To use cluster managers, you must set `parallelism='multiprocessing'`."
+                    "要使用集群管理器，必须设置`parallelism='multiprocessing'`。"
                 )
+            # 加载集群管理器
             cluster_manager = _load_cluster_manager(cluster_manager)
 
-        # TODO(mcranmer): These functions should be part of this class.
+        # TODO(mcranmer): 这些函数应该是这个类的一部分。
+        # 可能创建内联操作符
         binary_operators, unary_operators = _maybe_create_inline_operators(
             binary_operators=binary_operators,
             unary_operators=unary_operators,
             extra_sympy_mappings=self.extra_sympy_mappings,
             expression_spec=self.expression_spec_,
         )
+        # 如果有约束条件，则处理约束
         if constraints is not None:
             _constraints = _process_constraints(
                 binary_operators=binary_operators,
                 unary_operators=unary_operators,
                 constraints=constraints,
             )
+            # 获取一元和二元操作符的约束
             una_constraints = [_constraints[op] for op in unary_operators]
             bin_constraints = [_constraints[op] for op in binary_operators]
         else:
+            # 如果没有约束，则设置为None
             una_constraints = None
             bin_constraints = None
 
-        # Parse dict into Julia Dict for nested constraints::
+        # 将嵌套约束字典解析为Julia字典：
         if nested_constraints is not None:
+            # 构建Julia字典字符串表示
             nested_constraints_str = "Dict("
             for outer_k, outer_v in nested_constraints.items():
                 nested_constraints_str += f"({outer_k}) => Dict("
@@ -1910,42 +1975,52 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
                     nested_constraints_str += f"({inner_k}) => {inner_v}, "
                 nested_constraints_str += "), "
             nested_constraints_str += ")"
+            # 在Julia中求值该字符串
             nested_constraints = jl.seval(nested_constraints_str)
 
-        # Parse dict into Julia Dict for complexities:
+        # 将操作符复杂度字典解析为Julia字典：
         if complexity_of_operators is not None:
+            # 构建Julia字典字符串表示
             complexity_of_operators_str = "Dict("
             for k, v in complexity_of_operators.items():
                 complexity_of_operators_str += f"({k}) => {v}, "
             complexity_of_operators_str += ")"
+            # 在Julia中求值该字符串
             complexity_of_operators = jl.seval(complexity_of_operators_str)
-        # TODO: Refactor this into helper function
+        # TODO: 将此重构为辅助函数
 
+        # 如果变量复杂度是列表形式，则转换为Julia数组
         if isinstance(complexity_of_variables, list):
             complexity_of_variables = jl_array(complexity_of_variables)
 
+        # 处理自定义损失函数
         custom_loss = jl.seval(
             str(self.elementwise_loss)
             if self.elementwise_loss is not None
             else "nothing"
         )
+        # 处理自定义完整目标函数
         custom_full_objective = jl.seval(
             str(self.loss_function) if self.loss_function is not None else "nothing"
         )
+        # 处理自定义损失函数表达式
         custom_loss_expression = jl.seval(
             str(self.loss_function_expression)
             if self.loss_function_expression is not None
             else "nothing"
         )
 
+        # 处理早停条件
         early_stop_condition = jl.seval(
             str(self.early_stop_condition)
             if self.early_stop_condition is not None
             else "nothing"
         )
 
+        # 处理输入流
         input_stream = jl.seval(self.input_stream)
 
+        # 加载所需的Julia包
         load_required_packages(
             turbo=self.turbo,
             bumper=self.bumper,
@@ -1954,132 +2029,146 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
             logger_spec=self.logger_spec,
         )
 
+        # 如果指定了自动微分后端，则设置
         if self.autodiff_backend is not None:
             autodiff_backend = jl.Symbol(self.autodiff_backend)
         else:
             autodiff_backend = None
 
+        # 设置变异权重
         mutation_weights = SymbolicRegression.MutationWeights(
-            mutate_constant=self.weight_mutate_constant,
-            mutate_operator=self.weight_mutate_operator,
-            swap_operands=self.weight_swap_operands,
-            rotate_tree=self.weight_rotate_tree,
-            add_node=self.weight_add_node,
-            insert_node=self.weight_insert_node,
-            delete_node=self.weight_delete_node,
-            simplify=self.weight_simplify,
-            randomize=self.weight_randomize,
-            do_nothing=self.weight_do_nothing,
-            optimize=self.weight_optimize,
+            mutate_constant=self.weight_mutate_constant,          # 常数变异权重
+            mutate_operator=self.weight_mutate_operator,         # 操作符变异权重
+            swap_operands=self.weight_swap_operands,             # 操作数交换权重
+            rotate_tree=self.weight_rotate_tree,                 # 树旋转权重
+            add_node=self.weight_add_node,                       # 添加节点权重
+            insert_node=self.weight_insert_node,                 # 插入节点权重
+            delete_node=self.weight_delete_node,                 # 删除节点权重
+            simplify=self.weight_simplify,                       # 简化权重
+            randomize=self.weight_randomize,                     # 随机化权重
+            do_nothing=self.weight_do_nothing,                   # 无操作权重
+            optimize=self.weight_optimize,                       # 优化权重
         )
 
+        # 处理Julia操作符
         jl_binary_operators: list[Any] = []
         jl_unary_operators: list[Any] = []
+        # 遍历二元和一元操作符列表
         for input_list, output_list, name in [
             (binary_operators, jl_binary_operators, "binary"),
             (unary_operators, jl_unary_operators, "unary"),
         ]:
             for op in input_list:
+                # 在Julia中求值操作符
                 jl_op = jl.seval(op)
+                # 检查是否为函数
                 if not jl_is_function(jl_op):
                     raise ValueError(
-                        f"When building `{name}_operators`, `'{op}'` did not return a Julia function"
+                        f"构建`{name}_operators`时，`'{op}'`未返回Julia函数"
                     )
+                # 添加到输出列表
                 output_list.append(jl_op)
 
+        # 处理复杂度映射
         complexity_mapping = (
             jl.seval(self.complexity_mapping) if self.complexity_mapping else None
         )
 
+        # 处理日志记录器
         if hasattr(self, "logger_") and self.logger_ is not None and self.warm_start:
             logger = self.logger_
         else:
             logger = self.logger_spec.create_logger() if self.logger_spec else None
 
+        # 保存日志记录器引用
         self.logger_ = logger
 
-        # Call to Julia backend.
-        # See https://github.com/MilesCranmer/SymbolicRegression.jl/blob/master/src/OptionsStruct.jl
+        # 调用Julia后端。
+        # 参见 https://github.com/MilesCranmer/SymbolicRegression.jl/blob/master/src/OptionsStruct.jl
+        # 创建符号回归选项结构
         options = SymbolicRegression.Options(
-            binary_operators=jl_array(jl_binary_operators, dtype=jl.Function),
-            unary_operators=jl_array(jl_unary_operators, dtype=jl.Function),
-            bin_constraints=jl_array(bin_constraints),
-            una_constraints=jl_array(una_constraints),
-            complexity_of_operators=complexity_of_operators,
-            complexity_of_constants=self.complexity_of_constants,
-            complexity_of_variables=complexity_of_variables,
-            complexity_mapping=complexity_mapping,
-            expression_spec=self.expression_spec_.julia_expression_spec(),
-            nested_constraints=nested_constraints,
-            elementwise_loss=custom_loss,
-            loss_function=custom_full_objective,
-            loss_function_expression=custom_loss_expression,
-            loss_scale=jl.Symbol(self.loss_scale),
-            maxsize=int(self.maxsize),
-            output_directory=_escape_filename(self.output_directory_),
-            npopulations=int(self.populations),
-            batching=self.batching,
+            binary_operators=jl_array(jl_binary_operators, dtype=jl.Function),          # 二元操作符
+            unary_operators=jl_array(jl_unary_operators, dtype=jl.Function),            # 一元操作符
+            bin_constraints=jl_array(bin_constraints),                                  # 二元约束
+            una_constraints=jl_array(una_constraints),                                  # 一元约束
+            complexity_of_operators=complexity_of_operators,                            # 操作符复杂度
+            complexity_of_constants=self.complexity_of_constants,                       # 常数复杂度
+            complexity_of_variables=complexity_of_variables,                            # 变量复杂度
+            complexity_mapping=complexity_mapping,                                      # 复杂度映射
+            expression_spec=self.expression_spec_.julia_expression_spec(),              # 表达式规范
+            nested_constraints=nested_constraints,                                      # 嵌套约束
+            elementwise_loss=custom_loss,                                               # 元素级损失函数
+            loss_function=custom_full_objective,                                        # 损失函数
+            loss_function_expression=custom_loss_expression,                            # 损失函数表达式
+            loss_scale=jl.Symbol(self.loss_scale),                                      # 损失缩放
+            maxsize=int(self.maxsize),                                                  # 最大大小
+            output_directory=_escape_filename(self.output_directory_),                  # 输出目录
+            npopulations=int(self.populations),                                         # 种群数量
+            batching=self.batching,                                                     # 是否批处理
             batch_size=int(
                 min([runtime_params.batch_size, len(X)]) if self.batching else len(X)
-            ),
-            mutation_weights=mutation_weights,
-            tournament_selection_p=self.tournament_selection_p,
-            tournament_selection_n=self.tournament_selection_n,
-            # These have the same name:
-            parsimony=self.parsimony,
-            dimensional_constraint_penalty=self.dimensional_constraint_penalty,
-            dimensionless_constants_only=self.dimensionless_constants_only,
-            alpha=self.alpha,
-            maxdepth=runtime_params.maxdepth,
-            fast_cycle=self.fast_cycle,
-            turbo=self.turbo,
-            bumper=self.bumper,
-            autodiff_backend=autodiff_backend,
-            migration=self.migration,
-            hof_migration=self.hof_migration,
-            fraction_replaced_hof=self.fraction_replaced_hof,
-            should_simplify=self.should_simplify,
-            should_optimize_constants=self.should_optimize_constants,
-            warmup_maxsize_by=runtime_params.warmup_maxsize_by,
-            use_frequency=self.use_frequency,
-            use_frequency_in_tournament=self.use_frequency_in_tournament,
-            adaptive_parsimony_scaling=self.adaptive_parsimony_scaling,
-            npop=self.population_size,
-            ncycles_per_iteration=self.ncycles_per_iteration,
-            fraction_replaced=self.fraction_replaced,
-            topn=self.topn,
-            print_precision=self.print_precision,
-            optimizer_algorithm=self.optimizer_algorithm,
-            optimizer_nrestarts=self.optimizer_nrestarts,
-            optimizer_f_calls_limit=self.optimizer_f_calls_limit,
-            optimizer_probability=self.optimize_probability,
-            optimizer_iterations=self.optimizer_iterations,
-            perturbation_factor=self.perturbation_factor,
-            probability_negate_constant=self.probability_negate_constant,
-            annealing=self.annealing,
-            timeout_in_seconds=self.timeout_in_seconds,
-            crossover_probability=self.crossover_probability,
-            skip_mutation_failures=self.skip_mutation_failures,
-            max_evals=self.max_evals,
-            input_stream=input_stream,
-            early_stop_condition=early_stop_condition,
-            seed=seed,
-            deterministic=self.deterministic,
-            define_helper_functions=False,
+            ),                                                                          # 批处理大小
+            mutation_weights=mutation_weights,                                          # 变异权重
+            tournament_selection_p=self.tournament_selection_p,                         # 锦标赛选择概率
+            tournament_selection_n=self.tournament_selection_n,                         # 锦标赛选择数量
+            # 这些参数名称相同：
+            parsimony=self.parsimony,                                                   # 简约性
+            dimensional_constraint_penalty=self.dimensional_constraint_penalty,         # 维度约束惩罚
+            dimensionless_constants_only=self.dimensionless_constants_only,             # 仅无量纲常数
+            alpha=self.alpha,                                                           # Alpha参数
+            maxdepth=runtime_params.maxdepth,                                           # 最大深度
+            fast_cycle=self.fast_cycle,                                                 # 快速循环
+            turbo=self.turbo,                                                           # Turbo模式
+            bumper=self.bumper,                                                         # Bumper模式
+            autodiff_backend=autodiff_backend,                                          # 自动微分后端
+            migration=self.migration,                                                   # 迁移
+            hof_migration=self.hof_migration,                                           # Hall of Fame迁移
+            fraction_replaced_hof=self.fraction_replaced_hof,                           # Hall of Fame替换比例
+            should_simplify=self.should_simplify,                                       # 是否简化
+            should_optimize_constants=self.should_optimize_constants,                   # 是否优化常数
+            warmup_maxsize_by=runtime_params.warmup_maxsize_by,                         # 预热最大大小
+            use_frequency=self.use_frequency,                                           # 使用频率
+            use_frequency_in_tournament=self.use_frequency_in_tournament,               # 锦标赛中使用频率
+            adaptive_parsimony_scaling=self.adaptive_parsimony_scaling,                 # 自适应简约性缩放
+            npop=self.population_size,                                                  # 种群大小
+            ncycles_per_iteration=self.ncycles_per_iteration,                           # 每次迭代的周期数
+            fraction_replaced=self.fraction_replaced,                                   # 替换比例
+            topn=self.topn,                                                             # Top N
+            print_precision=self.print_precision,                                       # 打印精度
+            optimizer_algorithm=self.optimizer_algorithm,                               # 优化器算法
+            optimizer_nrestarts=self.optimizer_nrestarts,                               # 优化器重启次数
+            optimizer_f_calls_limit=self.optimizer_f_calls_limit,                       # 优化器函数调用限制
+            optimizer_probability=self.optimize_probability,                            # 优化概率
+            optimizer_iterations=self.optimizer_iterations,                             # 优化迭代次数
+            perturbation_factor=self.perturbation_factor,                               # 扰动因子
+            probability_negate_constant=self.probability_negate_constant,                # 否定常数概率
+            annealing=self.annealing,                                                   # 退火
+            timeout_in_seconds=self.timeout_in_seconds,                                 # 超时时间（秒）
+            crossover_probability=self.crossover_probability,                           # 交叉概率
+            skip_mutation_failures=self.skip_mutation_failures,                         # 跳过变异失败
+            max_evals=self.max_evals,                                                   # 最大评估次数
+            input_stream=input_stream,                                                  # 输入流
+            early_stop_condition=early_stop_condition,                                  # 早停条件
+            seed=seed,                                                                  # 随机种子
+            deterministic=self.deterministic,                                           # 确定性
+            define_helper_functions=False,                                              # 不定义辅助函数
         )
 
+        # 序列化选项并保存
         self.julia_options_stream_ = jl_serialize(options)
 
-        # Convert data to desired precision
+        # 将数据转换为所需精度
         test_X = np.array(X)
         np_dtype = self._get_precision_mapped_dtype(test_X)
 
-        # This converts the data into a Julia array:
+        # 将数据转换为Julia数组：
         jl_X = jl_array(np.array(X, dtype=np_dtype).T)
+        # 处理目标值y，根据形状决定是否转置
         if len(y.shape) == 1:
             jl_y = jl_array(np.array(y, dtype=np_dtype))
         else:
             jl_y = jl_array(np.array(y, dtype=np_dtype).T)
+        # 处理权重，根据形状决定是否转置
         if weights is not None:
             if len(weights.shape) == 1:
                 jl_weights = jl_array(np.array(weights, dtype=np_dtype))
@@ -2088,67 +2177,76 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
         else:
             jl_weights = None
 
+        # 处理类别数据
         if category is not None:
             offset_for_julia_indexing = 1
             jl_category = jl_array(
                 (category + offset_for_julia_indexing).astype(np.int64)
             )
+            # 创建包含类别的命名元组
             jl_extra = jl.seval("NamedTuple{(:class,)}")((jl_category,))
         else:
             jl_extra = jl.NamedTuple()
 
+        # 处理多输出情况下的变量名
         if len(y.shape) > 1:
-            # We set these manually so that they respect Python's 0 indexing
-            # (by default Julia will use y1, y2...)
+            # 手动设置这些参数以尊重Python的0索引
+            # (默认情况下Julia将使用y1, y2...)
             jl_y_variable_names = jl_array(
                 [f"y{_subscriptify(i)}" for i in range(y.shape[1])]
             )
         else:
             jl_y_variable_names = None
 
+        # 调用符号回归方程搜索
         out = SymbolicRegression.equation_search(
-            jl_X,
-            jl_y,
-            weights=jl_weights,
-            extra=jl_extra,
-            niterations=int(self.niterations),
-            variable_names=jl_array([str(v) for v in self.feature_names_in_]),
+            jl_X,                          # 输入特征数据
+            jl_y,                          # 目标值
+            weights=jl_weights,            # 权重
+            extra=jl_extra,                # 额外信息（如类别）
+            niterations=int(self.niterations),     # 迭代次数
+            variable_names=jl_array([str(v) for v in self.feature_names_in_]),      # 变量名
             display_variable_names=jl_array(
                 [str(v) for v in self.display_feature_names_in_]
-            ),
-            y_variable_names=jl_y_variable_names,
-            X_units=jl_array(self.X_units_),
+            ),                             # 显示变量名
+            y_variable_names=jl_y_variable_names,   # y变量名
+            X_units=jl_array(self.X_units_),        # X单位
             y_units=(
                 jl_array(self.y_units_)
                 if isinstance(self.y_units_, list)
                 else self.y_units_
-            ),
-            options=options,
-            numprocs=numprocs,
-            parallelism=parallelism,
-            saved_state=self.julia_state_,
-            return_state=True,
-            run_id=self.run_id_,
-            addprocs_function=cluster_manager,
-            heap_size_hint_in_bytes=self.heap_size_hint_in_bytes,
+            ),                             # y单位
+            options=options,               # 选项
+            numprocs=numprocs,             # 进程数
+            parallelism=parallelism,       # 并行模式
+            saved_state=self.julia_state_, # 保存的状态
+            return_state=True,             # 返回状态
+            run_id=self.run_id_,           # 运行ID
+            addprocs_function=cluster_manager,      # 添加进程函数
+            heap_size_hint_in_bytes=self.heap_size_hint_in_bytes,   # 堆大小提示
             progress=runtime_params.progress
             and self.verbosity > 0
-            and len(y.shape) == 1,
-            verbosity=int(self.verbosity),
-            logger=logger,
+            and len(y.shape) == 1,         # 进度显示
+            verbosity=int(self.verbosity), # 详细程度
+            logger=logger,                 # 日志记录器
         )
+        
+        # 如果有日志规范，则写入超参数并关闭日志
         if self.logger_spec is not None:
             self.logger_spec.write_hparams(logger, self.get_params())
             if not self.warm_start:
                 self.logger_spec.close(logger)
 
+        # 序列化Julia状态并保存
         self.julia_state_stream_ = jl_serialize(out)
 
-        # Set attributes
+        # 设置属性：获取Hall of Fame（最佳方程）
         self.equations_ = self.get_hof(out)
 
+        # 标记已运行
         ALREADY_RAN = True
 
+        # 返回自身
         return self
 
     def fit(
@@ -2165,82 +2263,84 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
         category: ndarray | None = None,
     ) -> "PySRRegressor":
         """
-        Search for equations to fit the dataset and store them in `self.equations_`.
+        搜索适合数据集的方程并将其存储在`self.equations_`中。
 
         Parameters
         ----------
         X : ndarray | pandas.DataFrame
-            Training data of shape (n_samples, n_features).
+            训练数据，形状为 (n_samples, n_features)。
         y : ndarray | pandas.DataFrame
-            Target values of shape (n_samples,) or (n_samples, n_targets).
-            Will be cast to X's dtype if necessary.
+            目标值，形状为 (n_samples,) 或 (n_samples, n_targets)。
+            如有必要，将被转换为X的数据类型。
         Xresampled : ndarray | pandas.DataFrame
-            Resampled training data, of shape (n_resampled, n_features),
-            to generate a denoised data on. This
-            will be used as the training data, rather than `X`.
+            重采样的训练数据，形状为 (n_resampled, n_features)，
+            用于生成去噪数据。这将用作训练数据，而不是`X`。
         weights : ndarray | pandas.DataFrame
-            Weight array of the same shape as `y`.
-            Each element is how to weight the mean-square-error loss
-            for that particular element of `y`. Alternatively,
-            if a custom `loss` was set, it will can be used
-            in arbitrary ways.
+            权重数组，形状与`y`相同。
+            每个元素表示如何对均方误差损失进行加权
+            对于`y`的特定元素。或者，
+            如果设置了自定义`loss`，它可以以任意方式使用。
         variable_names : list[str]
-            A list of names for the variables, rather than "x0", "x1", etc.
-            If `X` is a pandas dataframe, the column names will be used
-            instead of `variable_names`. Cannot contain spaces or special
-            characters. Avoid variable names which are also
-            function names in `sympy`, such as "N".
+            变量名称列表，而不是"x0"、"x1"等。
+            如果`X`是pandas数据框，则将使用列名
+            而不是`variable_names`。不能包含空格或特殊字符。
+            避免使用也是`sympy`中函数名的变量名，如"N"。
         X_units : list[str]
-            A list of units for each variable in `X`. Each unit should be
-            a string representing a Julia expression. See DynamicQuantities.jl
-            https://symbolicml.org/DynamicQuantities.jl/dev/units/ for more
-            information.
+            `X`中每个变量的单位列表。每个单位应该是
+            表示Julia表达式的字符串。更多信息请参见DynamicQuantities.jl
+            https://symbolicml.org/DynamicQuantities.jl/dev/units/ 。
         y_units : str | list[str]
-            Similar to `X_units`, but as a unit for the target variable, `y`.
-            If `y` is a matrix, a list of units should be passed. If `X_units`
-            is given but `y_units` is not, then `y_units` will be arbitrary.
+            与`X_units`类似，但作为目标变量`y`的单位。
+            如果`y`是矩阵，则应传递单位列表。如果`X_units`给出但`y_units`未给出，
+            则`y_units`将是任意的。
         category : list[int]
-            If `expression_spec` is a `ParametricExpressionSpec`, then this
-            argument should be a list of integers representing the category
-            of each sample.
+            如果`expression_spec`是`ParametricExpressionSpec`，则此参数
+            应该是表示每个样本类别的整数列表。
 
         Returns
         -------
         self : object
-            Fitted estimator.
+            拟合后的估计器对象
         """
-        # Init attributes that are not specified in BaseEstimator
+        # 初始化在BaseEstimator中未指定的属性
+        # 如果启用了warm_start并且已存在julia_state_stream_，则跳过初始化
         if self.warm_start and hasattr(self, "julia_state_stream_"):
             pass
         else:
+            # 如果存在julia_state_stream_但没有启用warm_start，则发出警告并重置属性
             if hasattr(self, "julia_state_stream_"):
                 warnings.warn(
-                    "The discovered expressions are being reset. "
-                    "Please set `warm_start=True` if you wish to continue "
-                    "to start a search where you left off.",
+                    "发现的表达式正在被重置。"
+                    "如果您希望继续上次的搜索，请设置`warm_start=True`。",
                 )
 
-            self.equations_ = None
-            self.nout_ = 1
-            self.selection_mask_ = None
-            self.julia_state_stream_ = None
-            self.julia_options_stream_ = None
-            self.complexity_of_variables_ = None
-            self.X_units_ = None
-            self.y_units_ = None
+            # 重置所有相关属性
+            self.equations_ = None  # 存储发现的方程
+            self.nout_ = 1  # 输出数量，默认为1
+            self.selection_mask_ = None  # 特征选择掩码
+            self.julia_state_stream_ = None  # Julia状态流
+            self.julia_options_stream_ = None  # Julia选项流
+            self.complexity_of_variables_ = None  # 变量复杂度
+            self.X_units_ = None  # X的单位
+            self.y_units_ = None  # y的单位
 
+        # 设置方程文件（用于存储搜索结果）
         self._setup_equation_file()
+        # 清空方程文件内容（为新搜索做准备）
         self._clear_equation_file_contents()
 
+        # 验证并修改参数，确保它们符合要求
         runtime_params = self._validate_and_modify_params()
 
+        # 断言检查：如果提供了category，则不能提供Xresampled
         if category is not None:
             assert Xresampled is None
 
+        # 断言检查：如果expression_spec是ParametricExpressionSpec，则必须提供category
         if isinstance(self.expression_spec, ParametricExpressionSpec):
             assert category is not None
 
-        # TODO: Put `category` here
+        # 验证并设置拟合参数
         (
             X,
             y,
@@ -2261,26 +2361,29 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
             y_units,
         )
 
+        # 如果数据点超过10000个且未启用批处理，则发出警告建议
         if X.shape[0] > 10000 and not self.batching:
             warnings.warn(
-                "Note: you are running with more than 10,000 datapoints. "
-                "You should consider turning on batching (https://ai.damtp.cam.ac.uk/pysr/options/#batching). "
-                "You should also reconsider if you need that many datapoints. "
-                "Unless you have a large amount of noise (in which case you "
-                "should smooth your dataset first), generally < 10,000 datapoints "
-                "is enough to find a functional form with symbolic regression. "
-                "More datapoints will lower the search speed."
+                "注意：您正在运行超过10,000个数据点。"
+                "您应该考虑开启批处理(batching)(https://ai.damtp.cam.ac.uk/pysr/options/#batching)。"
+                "您也应该重新考虑是否需要那么多数据点。"
+                "除非您有大量噪声（在这种情况下您应该先平滑数据集），"
+                "通常< 10,000个数据点就足以找到符号回归的功能形式。"
+                "更多数据点会降低搜索速度。"
             )
 
+        # 检查并设置随机状态，用于numpy随机数生成
         random_state = check_random_state(self.random_state)  # For np random
+        # 生成Julia随机数种子
         seed = cast(int, random_state.randint(0, 2**31 - 1))  # For julia random
 
+        # 如果expression_spec是ParametricExpressionSpec，发出参数表达式弃用警告
         if isinstance(self.expression_spec, ParametricExpressionSpec):
             parametric_expression_deprecation_warning(
                 self.expression_spec.max_parameters, variable_names
             )
 
-        # Pre transformations (feature selection and denoising)
+        # 预转换训练数据（特征选择和去噪）
         X, y, variable_names, complexity_of_variables, X_units, y_units = (
             self._pre_transform_training_data(
                 X,
@@ -2294,10 +2397,11 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
             )
         )
 
-        # Assertion checks
+        # 设置使用自定义变量名的标志
         use_custom_variable_names = variable_names is not None
-        # TODO: this is always true.
+        # TODO: 这个条件总是为真
 
+        # 执行各种断言检查，确保数据符合要求
         _check_assertions(
             X,
             use_custom_variable_names,
@@ -2309,19 +2413,18 @@ class PySRRegressor(MultiOutputMixin, RegressorMixin, BaseEstimator):
             y_units,
         )
 
-        # Initially, just save model parameters, so that
-        # it can be loaded from an early exit:
+        # 初始化时保存模型参数，以便在早期退出时可以加载
         if not self.temp_equation_file:
             self._checkpoint()
 
-        # Perform the search:
+        # 执行符号回归搜索
         self._run(X, y, runtime_params, weights=weights, seed=seed, category=category)
 
-        # Then, after fit, we save again, so the pickle file contains
-        # the equations:
+        # 拟合完成后再次保存，确保pickle文件包含方程
         if not self.temp_equation_file:
             self._checkpoint()
 
+        # 返回拟合后的对象
         return self
 
     def refresh(self, run_directory: PathLike | None = None) -> None:
