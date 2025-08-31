@@ -312,26 +312,134 @@ class EnhancedSymbolicRegression:
         elif results['test_r2'] > 0.9 and results['train_r2'] > 0.9:
             print("✅ 模型泛化性能良好")
 
+    def save_results(self, results, dataset_name, output_dir="result"):
+        """保存结果到本地文件夹"""
+        import os
+        import json
+        
+        # 创建输出目录
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 保存详细结果，转换numpy类型为Python原生类型
+        result_data = {
+            'dataset_name': dataset_name,
+            'best_equation': str(results['best_equation']),
+            'complexity': int(results['complexity']) if hasattr(results['complexity'], 'item') else results['complexity'],
+            'training_loss': float(results['training_loss']) if hasattr(results['training_loss'], 'item') else results['training_loss'],
+            'train_mse': float(results['train_mse']),
+            'test_mse': float(results['test_mse']),
+            'train_r2': float(results['train_r2']),
+            'test_r2': float(results['test_r2'])
+        }
+        
+        # 保存JSON结果
+        json_path = os.path.join(output_dir, f"{dataset_name}_results.json")
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(result_data, f, indent=2, ensure_ascii=False)
+        
+        # 保存预测结果
+        pred_path = os.path.join(output_dir, f"{dataset_name}_predictions.txt")
+        with open(pred_path, 'w', encoding='utf-8') as f:
+            f.write(f"数据集: {dataset_name}\n")
+            f.write(f"最佳方程: {results['best_equation']}\n")
+            f.write(f"复杂度: {results['complexity']}\n")
+            f.write(f"训练集MSE: {results['train_mse']:.6f}\n")
+            f.write(f"测试集MSE: {results['test_mse']:.6f}\n")
+            f.write(f"训练集R²: {results['train_r2']:.6f}\n")
+            f.write(f"测试集R²: {results['test_r2']:.6f}\n\n")
+            
+            f.write("训练集预测结果:\n")
+            for i, (true_val, pred_val) in enumerate(zip(results['y_train'], results['train_predictions'])):
+                f.write(f"{i+1:3d}: 真实值={true_val:.6f}, 预测值={pred_val:.6f}, 误差={abs(true_val-pred_val):.6f}\n")
+            
+            f.write("\n测试集预测结果:\n")
+            for i, (true_val, pred_val) in enumerate(zip(results['y_test'], results['test_predictions'])):
+                f.write(f"{i+1:3d}: 真实值={true_val:.6f}, 预测值={pred_val:.6f}, 误差={abs(true_val-pred_val):.6f}\n")
+        
+        # 保存模型方程到单独文件
+        equation_path = os.path.join(output_dir, f"{dataset_name}_equation.txt")
+        with open(equation_path, 'w', encoding='utf-8') as f:
+            f.write(results['best_equation'])
+        
+        print(f"结果已保存到: {output_dir}/{dataset_name}_*")
 
 # 使用示例
 if __name__ == "__main__":
-    # 生成测试数据
-    np.random.seed(42)
-    X = 2 * np.random.randn(100, 5)
-    y = 2.5382 * np.cos(X[:, 3]) + X[:, 0] ** 2 - 0.5
+    import pandas as pd
+    import os
     
-    # 创建增强符号回归算法实例
-    esr = EnhancedSymbolicRegression(
-        test_size=0.2,
-        random_state=42,
-        niterations=30,  # 可以自定义参数
-        verbosity=1
-    )
+    # 创建结果文件夹
+    os.makedirs("result", exist_ok=True)
     
-    # 训练模型
-    results = esr.fit(X, y)
+    # 数据集路径
+    datasets = [
+        ("data/dataset1_5features.txt", "dataset1"),
+        ("data/dataset2_5features.txt", "dataset2"), 
+        ("data/dataset3_5features.txt", "dataset3")
+    ]
     
-    # 打印结果
-    esr.print_results(results)
+    # 保存所有数据集的汇总结果
+    summary_results = []
     
-    print(f"\n真实关系: y = 2.5382 * cos(x3) + x0² - 0.5")
+    for dataset_path, dataset_name in datasets:
+        print(f"\n{'='*60}")
+        print(f"处理数据集: {dataset_name}")
+        print(f"{'='*60}")
+        
+        # 读取数据
+        data = pd.read_csv(dataset_path, sep='\t')
+        
+        # 提取特征和标签
+        feature_cols = [col for col in data.columns if col.startswith('C')]
+        X = data[feature_cols].values
+        y = data['cycle_log'].values
+        
+        print(f"数据集形状: X={X.shape}, y={y.shape}")
+        print(f"特征列: {feature_cols}")
+        
+        # 创建增强符号回归算法实例
+        esr = EnhancedSymbolicRegression(
+            test_size=0.2,
+            random_state=42,
+            niterations=30,
+            verbosity=1
+        )
+        
+        # 训练模型
+        results = esr.fit(X, y)
+        
+        # 打印结果
+        esr.print_results(results)
+        
+        # 保存结果
+        esr.save_results(results, dataset_name)
+        
+        # 添加到汇总
+        summary_results.append({
+            'dataset': dataset_name,
+            'equation': results['best_equation'],
+            'train_mse': results['train_mse'],
+            'test_mse': results['test_mse'],
+            'train_r2': results['train_r2'],
+            'test_r2': results['test_r2']
+        })
+        
+        print(f"\n数据集 {dataset_name} 处理完成")
+    
+    # 保存汇总结果
+    summary_path = "result/summary_all_datasets.txt"
+    with open(summary_path, 'w', encoding='utf-8') as f:
+        f.write("所有数据集符号回归结果汇总\n")
+        f.write("="*50 + "\n\n")
+        
+        for result in summary_results:
+            f.write(f"数据集: {result['dataset']}\n")
+            f.write(f"最佳方程: {result['equation']}\n")
+            f.write(f"训练集MSE: {result['train_mse']:.6f}\n")
+            f.write(f"测试集MSE: {result['test_mse']:.6f}\n")
+            f.write(f"训练集R²: {result['train_r2']:.6f}\n")
+            f.write(f"测试集R²: {result['test_r2']:.6f}\n")
+            f.write("-"*30 + "\n\n")
+    
+    print(f"\n所有结果已保存到 result/ 文件夹")
+    print(f"汇总结果: {summary_path}")
