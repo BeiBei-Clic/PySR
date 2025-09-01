@@ -28,8 +28,7 @@ requirements.lock
 outputs
 .mypy_cache
 data
-<<<<<<< HEAD
+
 result
-=======
-result
->>>>>>> 04a6b04f1960bdc7a9703194e92b710dd072e77a
+
+
