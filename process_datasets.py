@@ -55,9 +55,9 @@ def process_dataset(dataset_path, dataset_name):
         extra_sympy_mappings={"inv": lambda x: 1 / x},
         
         # 优化相关参数
-        niterations=80,
-        populations=40,
-        population_size=70,
+        niterations=400,
+        populations=300,
+        population_size=350,
         maxsize=20,  # 限制复杂度
         should_optimize_constants=True,
         optimizer_algorithm="BFGS",
