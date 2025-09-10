@@ -7,6 +7,8 @@ import warnings
 import os
 import json
 from datetime import datetime
+import sympy as sp
+import re
 warnings.filterwarnings('ignore')
 
 # 动态获取数据集信息
@@ -68,10 +70,65 @@ def calculate_metrics(y_true, y_pred):
     r2 = 1 - (np.sum((y_true - y_pred) ** 2) / np.sum((y_true - np.mean(y_true)) ** 2))
     return mse, r2
 
+# 定义表达式化简函数
+def simplify_expression(expression_str):
+    """
+    使用SymPy化简表达式并格式化常数为一位小数
+    """
+    if not expression_str or expression_str.strip() == "":
+        return expression_str
+    
+    # 替换PySR的函数名为SymPy的函数名
+    expr_str = expression_str.replace("^", "**")
+    
+    # 创建符号字典，包含所有可能的变量
+    symbols_dict = {}
+    for i in range(10):  # 支持x0到x9
+        symbols_dict[f'x{i}'] = sp.Symbol(f'x{i}')
+    
+    # 添加SymPy函数到本地字典
+    symbols_dict.update({
+        'log': sp.log,
+        'exp': sp.exp,
+        'sin': sp.sin,
+        'cos': sp.cos,
+        'tan': sp.tan,
+        'sqrt': sp.sqrt,
+        'abs': sp.Abs,
+        'pow': sp.Pow,
+        'Pow': sp.Pow,
+        'Add': sp.Add,
+        'Mul': sp.Mul,
+        'Float': sp.Float,
+        'Integer': sp.Integer,
+        'Rational': sp.Rational
+    })
+    
+    # 尝试解析和化简表达式 - 这里会自动剔除无效项
+    parsed_expr = sp.sympify(expr_str, locals=symbols_dict)
+    simplified = sp.simplify(parsed_expr)  # 自动剔除0*x、x+0等无效项
+    
+    # 格式化常数为一位小数
+    simplified_str = str(simplified)
+    # 使用正则表达式找到所有浮点数并格式化为一位小数
+    def format_float(match):
+        num = float(match.group())
+        return f"{num:.1f}"
+    
+    # 匹配浮点数的正则表达式
+    float_pattern = r'\b\d+\.\d+\b'
+    formatted_str = re.sub(float_pattern, format_float, simplified_str)
+    
+    # 如果化简后的表达式更简单，返回化简结果，否则返回原表达式
+    if len(formatted_str) <= len(expression_str):
+        return formatted_str
+    else:
+        return expression_str
+
 # 根据特征数量动态调整复杂度范围
 num_features = len(feature_columns)
 if num_features <= 3:
-    complexity_min, complexity_max = 5, 15
+    complexity_min, complexity_max = 5, 20
 elif num_features <= 5:
     complexity_min, complexity_max = 30, 50
 else:
@@ -116,7 +173,7 @@ os.makedirs(results_dir, exist_ok=True)
 all_results = []
 
 print("\n=== 开始10次重复实验 ===")
-for seed in range(1, 11):
+for seed in range(51, 52):
     print(f"\n--- 第 {seed} 次运行 (随机种子: {seed}) ---")
     
     # 设置随机种子
@@ -157,9 +214,13 @@ for seed in range(1, 11):
                 # 计算该方程的测试集指标
                 eq_test_mse, eq_test_r2 = calculate_metrics(y_test, y_test_pred_eq)
                 
+                # 化简表达式
+                original_expression = str(row['equation'])
+                simplified_expression = simplify_expression(original_expression)
+                
                 equation_result = {
-                    "expression": str(row['equation']),
-                    "complexity": complexity,
+                    "original_expression": original_expression,
+                    "simplified_expression": simplified_expression,
                     "test_mse": float(eq_test_mse),
                     "test_r2": float(eq_test_r2)
                 }
@@ -195,7 +256,6 @@ with open(result_file, 'w', encoding='utf-8') as f:
     f.write(f"特征变量: {', '.join(feature_columns)}\n")
     f.write(f"目标变量: y\n")
     f.write(f"实验名称: {experiment_name}\n")
-    f.write(f"复杂度范围: {complexity_min}-{complexity_max}\n")
     f.write(f"总运行次数: 10\n")
     f.write(f"找到的方程总数: {total_equations}\n")
     f.write(f"时间戳: {timestamp}\n")
@@ -207,15 +267,9 @@ with open(result_file, 'w', encoding='utf-8') as f:
         f.write("-" * 30 + "\n")
         
         for i, eq in enumerate(result['equations'], 1):
-            # 格式化常数为一位小数
-            import re
-            expression = eq['expression']
-            # 将浮点数格式化为一位小数
-            expression = re.sub(r'\b\d+\.\d+\b', lambda m: f"{float(m.group()):.1f}", expression)
-            
             f.write(f"方程 {i}:\n")
-            f.write(f"  表达式: {expression}\n")
-            f.write(f"  复杂度: {eq['complexity']}\n")
+            f.write(f"  原始表达式: {eq['original_expression']}\n")
+            f.write(f"  化简表达式: {eq['simplified_expression']}\n")
             f.write(f"  测试集MSE: {eq['test_mse']:.6f}\n")
             f.write(f"  测试集R²: {eq['test_r2']:.6f}\n")
             f.write("\n")
@@ -223,7 +277,6 @@ with open(result_file, 'w', encoding='utf-8') as f:
 print(f"\n=== 结果保存完成 ===")
 print(f"数据集: {dataset_name}")
 print(f"特征变量: {', '.join(feature_columns)}")
-print(f"复杂度范围: {complexity_min}-{complexity_max}")
 print(f"结果已保存到: {result_file}")
-print(f"包含 {len(all_results)} 次有效运行的复杂度{complexity_min}-{complexity_max}方程")
+print(f"包含 {len(all_results)} 次有效运行的方程")
 print(f"总方程数: {total_equations}")
